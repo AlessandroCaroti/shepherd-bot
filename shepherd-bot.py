@@ -4,12 +4,14 @@
 import logging
 import re
 from typing import List
+import requests, os, json
 
-from telegram import (InlineKeyboardButton,
+from telegram import (InlineKeyboardButton, Bot,
                       InlineKeyboardMarkup, Update)
 from telegram.ext import (Updater,
                           CommandHandler,
                           CallbackQueryHandler, CallbackContext)
+from telegram.utils.request import Request
 import requests
 from paramiko.ssh_exception import (SSHException)
 
@@ -37,14 +39,12 @@ commands = []
 def start(update: Update, context: CallbackContext) -> None:
     log_call(update)
     update.message.reply_text("Hi!")
-    
+        
 def cmd_help(update: Update, context: CallbackContext) -> None:
     log_call(update)
     if not identify(update):
         return
     help_message = """
-Shepherd v{v}
-
 /help
     Display this help
 
@@ -67,8 +67,8 @@ Shepherd v{v}
     Get the public IP address of the network Shepherd is in
 
 Names are only required if more than one machine is configured and may only contain a-z, 0-9 and _
-Mac addresses can use the separator '{separator}'
-    """.format(v=version.V, separator=config.MAC_ADDR_SEPARATOR)
+Mac addresses use the separator '{separator}'
+    """.format(separator=config.MAC_ADDR_SEPARATOR)
     update.message.reply_text(help_message)
 
 
@@ -388,10 +388,21 @@ def main() -> None:
     commands = read_commands_file(config.COMMANDS_STORAGE_PATH)
     perm.load_users()
 
-    # Set up updater
-    updater = Updater(config.TOKEN, use_context=True)
+    # Set up bot
+    req=Request(con_pool_size=8, connect_timeout=8)
+    my_bot = Bot(config.TOKEN,request=req)
+    updater = Updater(bot=my_bot, use_context=True)
     dispatcher = updater.dispatcher
 
+    # Add commands info
+    cmd=[("help","Display commands"),
+         ("list","List all saved machines"),
+         ("ip","Get the public IP"),
+         ("wake","Wake saved machine"),
+         ("shutdown","Shutdown saved machine"),
+         ("ping","Ping a server")]
+    my_bot.set_my_commands(cmd)
+    
     # Add handlers
     dispatcher.add_handler(CommandHandler('help', cmd_help))
     dispatcher.add_handler(CommandHandler('list', cmd_list))
@@ -402,7 +413,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler('command', cmd_command, pass_args=True))
     dispatcher.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
     dispatcher.add_handler(CommandHandler('start', start))
-
+    
     dispatcher.add_error_handler(error)
 
     # Start bot
