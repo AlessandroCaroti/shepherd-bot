@@ -34,7 +34,10 @@ commands = []
 ##
 # Command Handlers
 ##
-
+def start(update: Update, context: CallbackContext) -> None:
+    log_call(update)
+    update.message.reply_text("Hi!")
+    
 def cmd_help(update: Update, context: CallbackContext) -> None:
     log_call(update)
     if not identify(update):
@@ -419,6 +422,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler('shutdown', cmd_shutdown, pass_args=True))
     dispatcher.add_handler(CommandHandler('command', cmd_command, pass_args=True))
     dispatcher.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
+    dispatcher.add_handler(CommandHandler('start', start))
 
     dispatcher.add_error_handler(error)
 
