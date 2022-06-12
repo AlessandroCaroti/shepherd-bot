@@ -123,10 +123,6 @@ def cmd_wake_keyboard_handler(update: Update, context: CallbackContext) -> None:
     except ValueError:
         pass
     
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(text=f"TESTS {update.callback_query.data} - {n}")
-    
     send_magic_packet(update, machines[n].addr, machines[n].name)
 
 def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
@@ -134,10 +130,7 @@ def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
         n = int(update.callback_query.data[1:])
     except ValueError:
         pass
-    #
-    #query = update.callback_query
-    #query.answer()
-    #query.edit_message_text(text=f"TESTS_PING {update.callback_query.data} - {n}")
+    
     m = machines[n]
     if ping_server(m.host):
         update.callback_query.edit_message_text(f'Pong \U0001F3D3\nServer \'{m.name}\' is running \u2705')
@@ -373,7 +366,7 @@ def send_magic_packet(update: Update, mac_address: str, display_name: str) -> No
     except ValueError as e:
         update.message.reply_text(str(e))
         return
-    poke = f'Sending magic packets  to {display_name}...'
+    poke = f'Sending magic packets  to {display_name} ...'
 
     if update.callback_query:
         update.callback_query.edit_message_text(poke)
