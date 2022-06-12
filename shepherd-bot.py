@@ -32,7 +32,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 machines = []
 commands = []
-keyboard_machines = []
+keyboard_wol  = []
+keyboard_ping = []
 
 
 ############################################################################
@@ -40,7 +41,10 @@ keyboard_machines = []
 ############################################################################
 
 def wake_menu_keyboard():
-    return InlineKeyboardMarkup(keyboard_machines)
+    return InlineKeyboardMarkup(keyboard_wol)
+
+def ping_menu_keyboard():
+    return InlineKeyboardMarkup(keyboard_ping)
 
 
 ############################################################################
@@ -130,11 +134,16 @@ def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
         n = int(update.callback_query.data[1:])
     except ValueError:
         pass
-    
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(text=f"TESTS_PING {update.callback_query.data} - {n}")
-    print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
+    #
+    #query = update.callback_query
+    #query.answer()
+    #query.edit_message_text(text=f"TESTS_PING {update.callback_query.data} - {n}")
+    m = machines[n]
+    if ping_server(m.host):
+        update.callback_query.edit_message_text(f'Pong \U0001F3D3\nServer \'{m.name}\' is running \u2705')
+    else:
+        update.callback_query.edit_message_text(f'\uE333 Could not reach \'{m.name}\' under IP {m.host}')
+    return
     
 def cmd_shutdown_keyboard_handler(update: Update, context: CallbackContext) -> None:
     try:
@@ -300,10 +309,8 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
     args = context.args
     if len(args) < 1 and len(machines) != 1:
         if not len(machines):
-            update.message.reply_text(
-                'Please add a machine with in the configuration first!')
-        markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
-        update.message.reply_text('Select a machine to ping:', reply_markup=markup)
+            update.message.reply_text('Please add a machine with in the configuration first!')
+        update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard())
         return
     
     if len(args) > 1:
@@ -318,10 +325,9 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
     for m in machines:
         if m.name == machine_name:
             if ping_server(m.host):
-                update.message.reply_text('Pong\nServer is running.')
+                update.message.reply_text(f'Pong\nServer \'{m.name}\' is running.')
             else:
-                update.message.reply_text(
-                    'Could not reach {name} under IP {host}'.format(name=m.name, host=m.host))
+                update.message.reply_text(f'Could not reach {m.name} under IP {m.host}')
             return
     update.message.reply_text('Could not find ' + machine_name)
 
@@ -457,11 +463,13 @@ def main() -> None:
            ("shutdown", "Shutdown saved machine")]
     my_bot.set_my_commands(cmd)
 
-    # Add menu and menu handler
+    # Create menu Keyboards TODO: add shutdown
     for idx, m in enumerate(machines):
-        keyboard_machines.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'w{idx}')])
-        dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler, pattern='w+'))
-    keyboard_machines.append([InlineKeyboardButton(f'<< Cancel', callback_data="C")])
+        keyboard_wol.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'w{idx}')])
+        keyboard_ping.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'p{idx}')])
+    cnl_btn = [InlineKeyboardButton(f'<< Cancel', callback_data="C")]
+    keyboard_wol.append(cnl_btn)
+    keyboard_ping.append(cnl_btn)
         
     # Add handlers
     dispatcher.add_handler(CommandHandler('help', cmd_help))
@@ -474,6 +482,8 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
     dispatcher.add_handler(CommandHandler('start', start))
     
+    dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler, pattern='w+'))
+    dispatcher.add_handler(CallbackQueryHandler(cmd_ping_keyboard_handler, pattern='p+'))
     dispatcher.add_handler(CallbackQueryHandler(cmd_cancel_handler, pattern="C"))
     
     
