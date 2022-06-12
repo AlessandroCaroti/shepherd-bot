@@ -5,6 +5,7 @@ import logging
 import re
 from typing import List
 import requests, os, json
+import functools
 
 from telegram import (InlineKeyboardButton, Bot,
                       InlineKeyboardMarkup, Update)
@@ -31,15 +32,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 machines = []
 commands = []
+keyboard_machines = []
 
 
-##
-# Command Handlers
-##
+############################################################################
+# Menu #####################################################################
+############################################################################
+
+def wake_menu_keyboard():
+    return InlineKeyboardMarkup(keyboard_machines)
+
+
+############################################################################
+# Command Handlers #########################################################
+############################################################################
 def start(update: Update, context: CallbackContext) -> None:
     log_call(update)
     update.message.reply_text("Hi!")
-        
+    
+
 def cmd_help(update: Update, context: CallbackContext) -> None:
     log_call(update)
     if not identify(update):
@@ -84,8 +95,7 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
     if len(args) < 1 and len(machines) != 1:
         if not len(machines):
             update.message.reply_text('Please add a machine in the configuration first!')
-        markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
-        update.message.reply_text('Please select a machine to wake:', reply_markup=markup)
+        update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard())
         return
 
     if len(args) > 1:
@@ -102,18 +112,40 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
             send_magic_packet(update, m.addr, m.name)
             return
     update.message.reply_text('Could not find ' + machine_name)
-
-
+    
 def cmd_wake_keyboard_handler(update: Update, context: CallbackContext) -> None:
     try:
-        n = int(update.callback_query.data)
+        n = int(update.callback_query.data[1:])
     except ValueError:
         pass
-    matches = [m for m in machines if m.id == n]
-    if len(matches) < 1:
-        return
-    send_magic_packet(update, matches[0].addr, matches[0].name)
+    
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text=f"TESTS {update.callback_query.data} - {n}")
+    
+    send_magic_packet(update, machines[n].addr, machines[n].name)
 
+def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
+    try:
+        n = int(update.callback_query.data[1:])
+    except ValueError:
+        pass
+    
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text=f"TESTS_PING {update.callback_query.data} - {n}")
+    print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
+    
+def cmd_shutdown_keyboard_handler(update: Update, context: CallbackContext) -> None:
+    try:
+        n = int(update.callback_query.data[1:])
+    except ValueError:
+        pass
+    
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
+    print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     log_call(update)
@@ -126,9 +158,10 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     # When no args are supplied
     if len(args) < 1 and len(machines) != 1:
         if not len(machines):
-            update.message.reply_text('Please add a machine in the configuration first!')
+            update.message.reply_text(
+                'Please add a machine in the configuration first!')
         markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
-        update.message.reply_text('Please select a machine to wake:', reply_markup=markup)
+        update.message.reply_text('Select a machine to shutdown:', reply_markup=markup)
         return
 
     # Parse arguments and send shutdown command
@@ -146,10 +179,13 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     if check_ssh_setup(machine):
         logger.info(
             'host: {host}| user: {user}| port: {port}'.format(host=machine.host, user=machine.user, port=machine.port))
-        send_shutdown_command(update, machine.host, machine.port, machine.user, machine.name)
+        send_shutdown_command(update, machine.host,
+                              machine.port, machine.user, machine.name)
     else:
-        logger.info('Machine {name} not set up for SSH connections.'.format(name=machine.name))
-        update.message.reply_text(machine.name + ' is not set up for SSH connection')
+        logger.info('Machine {name} not set up for SSH connections.'.format(
+            name=machine.name))
+        update.message.reply_text(
+            machine.name + ' is not set up for SSH connection')
     return
 
 
@@ -194,7 +230,8 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
         return
 
     if len(machines) == 0:
-        update.message.reply_text('No machines are registered. Please add a machine in the configuration first!')
+        update.message.reply_text(
+            'No machines are registered. Please add a machine in the configuration first!')
         return
 
     args = context.args
@@ -203,7 +240,8 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
         return
 
     if len(args) > 2:
-        update.message.reply_text('Only one command can be processed at a time.')
+        update.message.reply_text(
+            'Only one command can be processed at a time.')
         return
 
     if len(args) == 1:
@@ -216,7 +254,8 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
     command = find_by_name(commands, command_name)
 
     if command is None:
-        update.message.reply_text('Could not find command "{cmd}"'.format(cmd=command_name))
+        update.message.reply_text(
+            'Could not find command "{cmd}"'.format(cmd=command_name))
         return
 
     cmd_permission = command.permission
@@ -226,22 +265,27 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
     machine = find_by_name(machines, machine_name)
 
     if machine is None:
-        update.message.reply_text('Could not find machine {machine}.'.format(machine=machine_name))
+        update.message.reply_text(
+            'Could not find machine {machine}.'.format(machine=machine_name))
         return
 
     if not check_ssh_setup(machine):
-        update.message.reply_text('Machine {machine} is not set up for SSH connections.'.format(machine=machine_name))
+        update.message.reply_text(
+            'Machine {machine} is not set up for SSH connections.'.format(machine=machine_name))
         return
 
     try:
-        logger.info('Attempting to run command on machine {m}: {c}'.format(m=machine.name, c=command.name))
+        logger.info('Attempting to run command on machine {m}: {c}'.format(
+            m=machine.name, c=command.name))
         msg = execute_command(command, machine)
         update.message.reply_text('Command executed:\n{m}'.format(m=msg))
     except SSHException as e:
-        update.message.reply_text('Error in SSH messaging: {e}'.format(e=str(e)))
+        update.message.reply_text(
+            'Error in SSH messaging: {e}'.format(e=str(e)))
         return
     except RuntimeError as e:
-        update.message.reply_text('An unexpected error occurred: {e}'.format(e=str(e)))
+        update.message.reply_text(
+            'An unexpected error occurred: {e}'.format(e=str(e)))
         return
 
 
@@ -256,11 +300,12 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
     args = context.args
     if len(args) < 1 and len(machines) != 1:
         if not len(machines):
-            update.message.reply_text('Please add a machine with in the configuration first!')
+            update.message.reply_text(
+                'Please add a machine with in the configuration first!')
         markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
-        update.message.reply_text('Please select a machine to wake:', reply_markup=markup)
+        update.message.reply_text('Select a machine to ping:', reply_markup=markup)
         return
-
+    
     if len(args) > 1:
         update.message.reply_text('Please supply only a machine name')
         return
@@ -275,7 +320,8 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
             if ping_server(m.host):
                 update.message.reply_text('Pong\nServer is running.')
             else:
-                update.message.reply_text('Could not reach {name} under IP {host}'.format(name=m.name, host=m.host))
+                update.message.reply_text(
+                    'Could not reach {name} under IP {host}'.format(name=m.name, host=m.host))
             return
     update.message.reply_text('Could not find ' + machine_name)
 
@@ -283,19 +329,25 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
 def list_commands(update: Update) -> None:
     msg = '{num} Stored Commands:\n'.format(num=len(commands))
     for c in commands:
-        msg += '{name}: {description}\n'.format(name=c.name, description=c.description)
+        msg += '{name}: {description}\n'.format(
+            name=c.name, description=c.description)
 
     msg += '\nRun a command with /command [machine_name] <cmd_name>'
 
     update.message.reply_text(msg)
 
-
-##
-# Other Functions
-##
+def cmd_cancel_handler(update, context):
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text="Operation canceled")
+    
+############################################################################
+# Other Functions ##########################################################
+############################################################################
 
 def error(update: Update, context: CallbackContext) -> None:
-    logger.warning('Update "{u}" caused error "{e}"'.format(u=update, e=context.error))
+    logger.warning('Update "{u}" caused error "{e}"'.format(
+        u=update, e=context.error))
 
 
 def log_call(update: Update) -> None:
@@ -315,8 +367,7 @@ def send_magic_packet(update: Update, mac_address: str, display_name: str) -> No
     except ValueError as e:
         update.message.reply_text(str(e))
         return
-    poke = 'Sending magic packets...\n{name}'.format(
-        name=display_name)
+    poke = f'Sending magic packets  to {display_name}...'
 
     if update.callback_query:
         update.callback_query.edit_message_text(poke)
@@ -378,10 +429,13 @@ def authorize(update: Update, permission: str) -> bool:
     return True
 
 
+    
+
 def main() -> None:
     logger.info('Starting Shepherd bot version {v}'.format(v=version.V))
     if not config.VERIFY_HOST_KEYS:
-        logger.warning('Verification of host keys for SSH connections is deactivated.')
+        logger.warning(
+            'Verification of host keys for SSH connections is deactivated.')
     global machines
     global commands
     machines = read_machines_file(config.MACHINES_STORAGE_PATH)
@@ -389,30 +443,39 @@ def main() -> None:
     perm.load_users()
 
     # Set up bot
-    req=Request(con_pool_size=8, connect_timeout=8)
-    my_bot = Bot(config.TOKEN,request=req)
+    req = Request(con_pool_size=8, connect_timeout=8)
+    my_bot = Bot(config.TOKEN, request=req)
     updater = Updater(bot=my_bot, use_context=True)
     dispatcher = updater.dispatcher
 
     # Add commands info
-    cmd=[("help","Display commands"),
-         ("list","List all saved machines"),
-         ("ip","Get the public IP"),
-         ("wake","Wake saved machine"),
-         ("shutdown","Shutdown saved machine"),
-         ("ping","Ping a server")]
+    cmd = [("help", "Display commands"),
+           ("wake", "Wake saved machine"),
+           ("list", "List all saved machines"),
+           ("ping", "Ping a server"),
+           ("ip", "Get the public IP"),
+           ("shutdown", "Shutdown saved machine")]
     my_bot.set_my_commands(cmd)
-    
+
+    # Add menu and menu handler
+    for idx, m in enumerate(machines):
+        keyboard_machines.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'w{idx}')])
+        dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler, pattern='w+'))
+    keyboard_machines.append([InlineKeyboardButton(f'<< Cancel', callback_data="C")])
+        
     # Add handlers
     dispatcher.add_handler(CommandHandler('help', cmd_help))
     dispatcher.add_handler(CommandHandler('list', cmd_list))
     dispatcher.add_handler(CommandHandler('ip', cmd_ip))
-    dispatcher.add_handler(CommandHandler('wake', cmd_wake, pass_args=True))
-    dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler))
+    dispatcher.add_handler(CommandHandler('wake', cmd_wake))
+    #dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler))
     dispatcher.add_handler(CommandHandler('shutdown', cmd_shutdown, pass_args=True))
     dispatcher.add_handler(CommandHandler('command', cmd_command, pass_args=True))
     dispatcher.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
     dispatcher.add_handler(CommandHandler('start', start))
+    
+    dispatcher.add_handler(CallbackQueryHandler(cmd_cancel_handler, pattern="C"))
+    
     
     dispatcher.add_error_handler(error)
 
