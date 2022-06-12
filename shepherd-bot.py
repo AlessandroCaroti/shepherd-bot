@@ -445,9 +445,7 @@ def main() -> None:
     cmd = [("help", "Display commands"),
            ("wake", "Wake saved machine"),
            ("list", "List all saved machines"),
-           ("ping", "Ping a server"),
-           ("ip", "Get the public IP"),
-           ("shutdown", "Shutdown saved machine")]
+           ("ping", "Ping a server")]
     my_bot.set_my_commands(cmd)
 
     # Create menu Keyboards TODO: add shutdown
