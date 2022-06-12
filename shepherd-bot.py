@@ -96,7 +96,7 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
 
     # When no args are supplied
     args = context.args
-    if len(args) < 1 and len(machines) != 1:
+    if len(args) == 0:
         if not len(machines):
             update.message.reply_text('Please add a machine in the configuration first!')
         update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard())
@@ -107,10 +107,7 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
         return
 
     # Parse arguments and send WoL packets
-    if len(args) == 0:
-        machine_name = machines[0].name
-    else:
-        machine_name = args[0]
+    machine_name = args[0]
     for m in machines:
         if m.name == machine_name:
             send_magic_packet(update, m.addr, m.name)
@@ -156,12 +153,12 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     if not identify(update) or not authorize(update, cmd_permission):
         return
 
+    return
     args = context.args
     # When no args are supplied
     if len(args) < 1 and len(machines) != 1:
         if not len(machines):
-            update.message.reply_text(
-                'Please add a machine in the configuration first!')
+            update.message.reply_text('Please add a machine in the configuration first!')   # TODO: FIX
         markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
         update.message.reply_text('Select a machine to shutdown:', reply_markup=markup)
         return
@@ -300,7 +297,7 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
 
     # When no args are supplied
     args = context.args
-    if len(args) < 1 and len(machines) != 1:
+    if len(args) == 0:
         if not len(machines):
             update.message.reply_text('Please add a machine with in the configuration first!')
         update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard())
@@ -311,10 +308,7 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
         return
 
     # Parse arguments and send WoL packets
-    if len(args) == 0:
-        machine_name = machines[0].name
-    else:
-        machine_name = args[0]
+    machine_name = args[0]
     for m in machines:
         if m.name == machine_name:
             if ping_server(m.host):
