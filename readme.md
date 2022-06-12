@@ -128,4 +128,4 @@ This can be done by running `sudo visudo`. This will open a file, add the follow
 
 ## Acknowledgements
 
-The base for this repository was [wolbot by Osir](https://github.com/osir/wolbot). Backwards compatibility is not kept, but the version numbering is, so the first official version of Shepherd is 3.0
+The base for this repository was [shepherd-bot by schrer](https://github.com/schrer/shepherd-bot).
