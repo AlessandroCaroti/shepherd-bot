@@ -5,7 +5,6 @@ import logging
 import re
 from typing import List
 import requests, os, json
-import functools
 
 from telegram import (InlineKeyboardButton, Bot,
                       InlineKeyboardMarkup, Update)
@@ -448,6 +447,8 @@ def main() -> None:
            ("ping", "Ping a server")]
     my_bot.set_my_commands(cmd)
 
+    global keyboard_wol
+    global keyboard_ping
     # Create menu Keyboards TODO: add shutdown
     for idx, m in enumerate(machines):
         keyboard_wol.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'w{idx}')])
