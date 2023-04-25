@@ -29,26 +29,17 @@ logging.basicConfig(
     format=config.LOG_FORMAT,
     level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
+
 machines = []
 commands = []
 keyboard_wol  = []
 keyboard_ping = []
 
 
-############################################################################
-# Menu #####################################################################
-############################################################################
+#################################################################################
+# Command Handlers ##############################################################
+#################################################################################
 
-def wake_menu_keyboard():
-    return InlineKeyboardMarkup(keyboard_wol)
-
-def ping_menu_keyboard():
-    return InlineKeyboardMarkup(keyboard_ping)
-
-
-############################################################################
-# Command Handlers #########################################################
-############################################################################
 def start(update: Update, context: CallbackContext) -> None:
     log_call(update)
     update.message.reply_text("Hi!")
@@ -86,6 +77,8 @@ Mac addresses use the separator '{separator}'
     update.message.reply_text(help_message)
 
 
+### WAKE-ON-LAN SECTION ##########################################################
+
 def cmd_wake(update: Update, context: CallbackContext) -> None:
     log_call(update)
     # Check correctness of call
@@ -98,7 +91,8 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
     if len(args) == 0:
         if not len(machines):
             update.message.reply_text('Please add a machine in the configuration first!')
-        update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard())
+        wake_menu_keyboard = InlineKeyboardMarkup(keyboard_wol)
+        update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard)
         return
 
     if len(args) > 1:
@@ -120,30 +114,9 @@ def cmd_wake_keyboard_handler(update: Update, context: CallbackContext) -> None:
         pass
     
     send_magic_packet(update, machines[n].addr, machines[n].name)
+    
 
-def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
-    try:
-        n = int(update.callback_query.data[1:])
-    except ValueError:
-        pass
-    
-    m = machines[n]
-    if ping_server(m.host):
-        update.callback_query.edit_message_text(f'Pong \U0001F3D3\nServer \'{m.name}\' is running \u2705')
-    else:
-        update.callback_query.edit_message_text(f'\uE333 Could not reach \'{m.name}\' under IP {m.host}')
-    return
-    
-def cmd_shutdown_keyboard_handler(update: Update, context: CallbackContext) -> None:
-    try:
-        n = int(update.callback_query.data[1:])
-    except ValueError:
-        pass
-    
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
-    print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
+### SHUTDOWN SECTION ##########################################################
 
 def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     log_call(update)
@@ -186,6 +159,64 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
             machine.name + ' is not set up for SSH connection')
     return
 
+def cmd_shutdown_keyboard_handler(update: Update, context: CallbackContext) -> None:
+    try:
+        n = int(update.callback_query.data[1:])
+    except ValueError:
+        pass
+    
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
+    print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+
+### PING SECTION ##########################################################
+
+def cmd_ping(update: Update, context: CallbackContext) -> None:
+    log_call(update)
+    # Check correctness of call
+    cmd_permission = config.PERM_PING
+    if not identify(update) or not authorize(update, cmd_permission):
+        return
+
+    # When no args are supplied
+    args = context.args
+    if len(args) == 0:
+        if not len(machines):
+            update.message.reply_text('Please add a machine with in the configuration first!')
+        ping_menu_keyboard = InlineKeyboardMarkup(keyboard_ping)
+        update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard)
+        return
+    
+    if len(args) > 1:
+        update.message.reply_text('Please supply only a machine name')
+        return
+
+    # Parse arguments and send WoL packets
+    machine_name = args[0]
+    for m in machines:
+        if m.name == machine_name:
+            if ping_server(m.host):
+                update.message.reply_text(f'Pong\nServer \'{m.name}\' is running.')
+            else:
+                update.message.reply_text(f'Could not reach {m.name} under IP {m.host}')
+            return
+    update.message.reply_text('Could not find ' + machine_name)
+
+def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
+    try:
+        n = int(update.callback_query.data[1:])
+    except ValueError:
+        pass
+    
+    m = machines[n]
+    if ping_server(m.host):
+        update.callback_query.edit_message_text(f'Pong \U0001F3D3\nServer \'{m.name}\' is running \u2705')
+    else:
+        update.callback_query.edit_message_text(f'\u274C Could not reach \'{m.name}\' under IP {m.host}')
+    return
+
 
 def cmd_list(update: Update, context: CallbackContext) -> None:
     log_call(update)
@@ -197,7 +228,7 @@ def cmd_list(update: Update, context: CallbackContext) -> None:
     # Print all stored machines
     msg = '{num} Stored Machines:\n'.format(num=len(machines))
     for m in machines:
-        msg += '#{i}: "{n}" → {a}\n'.format(i=m.id, n=m.name, a=m.addr)
+        msg += f'{m.id}) {m.name}\n'
     update.message.reply_text(msg)
 
 
@@ -220,6 +251,8 @@ def cmd_ip(update: Update, context: CallbackContext) -> None:
     except RuntimeError as e:
         update.message.reply_text('Error: ' + str(e))
 
+
+### RUN_COMMAND SECTION ##########################################################
 
 def cmd_command(update: Update, context: CallbackContext) -> None:
     log_call(update)
@@ -286,38 +319,6 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
             'An unexpected error occurred: {e}'.format(e=str(e)))
         return
 
-
-def cmd_ping(update: Update, context: CallbackContext) -> None:
-    log_call(update)
-    # Check correctness of call
-    cmd_permission = config.PERM_PING
-    if not identify(update) or not authorize(update, cmd_permission):
-        return
-
-    # When no args are supplied
-    args = context.args
-    if len(args) == 0:
-        if not len(machines):
-            update.message.reply_text('Please add a machine with in the configuration first!')
-        update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard())
-        return
-    
-    if len(args) > 1:
-        update.message.reply_text('Please supply only a machine name')
-        return
-
-    # Parse arguments and send WoL packets
-    machine_name = args[0]
-    for m in machines:
-        if m.name == machine_name:
-            if ping_server(m.host):
-                update.message.reply_text(f'Pong\nServer \'{m.name}\' is running.')
-            else:
-                update.message.reply_text(f'Could not reach {m.name} under IP {m.host}')
-            return
-    update.message.reply_text('Could not find ' + machine_name)
-
-
 def list_commands(update: Update) -> None:
     msg = '{num} Stored Commands:\n'.format(num=len(commands))
     for c in commands:
@@ -333,9 +334,9 @@ def cmd_cancel_handler(update, context):
     query.answer()
     query.edit_message_text(text="Operation canceled")
     
-############################################################################
-# Other Functions ##########################################################
-############################################################################
+#################################################################################
+# Other Functions ###############################################################
+#################################################################################
 
 def error(update: Update, context: CallbackContext) -> None:
     logger.warning('Update "{u}" caused error "{e}"'.format(
@@ -395,15 +396,15 @@ def generate_machine_keyboard(machine_list: List[Machine]) -> List[List[InlineKe
     return kbd
 
 
+### PERMISSION SECTION ##########################################################
+
 def identify(update: Update) -> bool:
     if not perm.is_known_user(update.message.from_user.id):
         logger.warning('Unknown User {fn} {ln} [{i}] tried to call bot'.format(
             fn=update.message.from_user.first_name,
             ln=update.message.from_user.last_name,
             i=update.message.from_user.id))
-        # TODO: reply with GIF of Post Malone waving with finger in police outfit
-        update.message.reply_text('You are not authorized to use this bot.\n'
-                                  + 'To set up your own visit https://github.com/schrer/shepherd-bot')
+        update.message.reply_text('You are not authorized to use this bot.')
         return False
     return True
 
@@ -421,7 +422,9 @@ def authorize(update: Update, permission: str) -> bool:
     return True
 
 
-    
+#################################################################################
+### MAIN ########################################################################
+#################################################################################
 
 def main() -> None:
     logger.info('Starting Shepherd bot version {v}'.format(v=version.V))
@@ -447,8 +450,7 @@ def main() -> None:
            ("ping", "Ping a server")]
     my_bot.set_my_commands(cmd)
 
-    global keyboard_wol
-    global keyboard_ping
+    global keyboard_wol, keyboard_ping
     # Create menu Keyboards TODO: add shutdown
     for idx, m in enumerate(machines):
         keyboard_wol.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'w{idx}')])
@@ -462,7 +464,6 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler('list', cmd_list))
     dispatcher.add_handler(CommandHandler('ip', cmd_ip))
     dispatcher.add_handler(CommandHandler('wake', cmd_wake))
-    #dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler))
     dispatcher.add_handler(CommandHandler('shutdown', cmd_shutdown, pass_args=True))
     dispatcher.add_handler(CommandHandler('command', cmd_command, pass_args=True))
     dispatcher.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
