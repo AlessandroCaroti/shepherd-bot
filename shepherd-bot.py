@@ -450,10 +450,6 @@ def main() -> None:
     perm.load_users()
 
     # Set up bot
-    # req = Request(con_pool_size=8, connect_timeout=8)
-    # my_bot = Bot(config.TOKEN)
-    # updater = Updater(bot=my_bot, )
-    # application = updater.application
     application = ApplicationBuilder().token(config.TOKEN).build()
 
     # Add commands info
@@ -476,10 +472,6 @@ def main() -> None:
     application.add_handler(CommandHandler('help', cmd_help))
     application.add_handler(CommandHandler('list', cmd_list))
     application.add_handler(CommandHandler('ip', cmd_ip))
-    # application.add_handler(CommandHandler('wake', cmd_wake, pass_args=True))
-    # application.add_handler(CommandHandler('shutdown', cmd_shutdown, pass_args=True))
-    # application.add_handler(CommandHandler('command', cmd_command, pass_args=True))
-    # application.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
     application.add_handler(CommandHandler('wake', cmd_wake))
     application.add_handler(CommandHandler('shutdown', cmd_shutdown))
     application.add_handler(CommandHandler('command', cmd_command))
