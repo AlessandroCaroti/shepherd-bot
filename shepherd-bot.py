@@ -15,7 +15,7 @@ from telegram.ext import (Updater,
 # from telegram.utils.request import Request
 # from telegram.request import BaseRequest as Request
 
-import requests
+import requests, asyncio
 from paramiko.ssh_exception import (SSHException)
 
 import version
@@ -44,15 +44,17 @@ keyboard_ping = []
 #################################################################################
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
     # await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
     await update.message.reply_text("Hi!")
     
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
-    if not identify(update):
+    asyncio.create_task(log_call(update))
+    
+    if not (await identify(update)):
         return
+    
     help_message = """
 /help
     Display this help
@@ -84,10 +86,11 @@ Mac addresses use the separator '{separator}'
 ### WAKE-ON-LAN SECTION ##########################################################
 
 async def cmd_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
+    
     # Check correctness of call
     cmd_permission = config.PERM_WAKE
-    if not identify(update) or not authorize(update, cmd_permission):
+    if not (await identify(update)) or not (await authorize(update, cmd_permission)):
         return
 
     # When no args are supplied
@@ -123,10 +126,11 @@ async def cmd_wake_keyboard_handler(update: Update, context: ContextTypes.DEFAUL
 ### SHUTDOWN SECTION ##########################################################
 
 async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
+    
     # Check correctness of call
     cmd_permission = config.PERM_SHUTDOWN
-    if not identify(update) or not authorize(update, cmd_permission):
+    if not (await identify(update)) or not (await authorize(update, cmd_permission)):
         return
 
     return
@@ -178,10 +182,11 @@ async def cmd_shutdown_keyboard_handler(update: Update, context: ContextTypes.DE
 ### PING SECTION ##########################################################
 
 async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
+    
     # Check correctness of call
     cmd_permission = config.PERM_PING
-    if not identify(update) or not authorize(update, cmd_permission):
+    if not (await identify(update)) or not (await authorize(update, cmd_permission)):
         return
 
     # When no args are supplied
@@ -223,10 +228,10 @@ async def cmd_ping_keyboard_handler(update: Update, context: ContextTypes.DEFAUL
 
 
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
     # Check correctness of call
     cmd_permission = config.PERM_LIST
-    if not identify(update) or not authorize(update, cmd_permission):
+    if not (await identify(update)) or not (await authorize(update, cmd_permission)):
         return
 
     # Print all stored machines
@@ -237,9 +242,10 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_ip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
+    
     # Check correctness of call
-    if not identify(update):
+    if not (await identify(update)):
         return
 
     try:
@@ -259,9 +265,9 @@ async def cmd_ip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 ### RUN_COMMAND SECTION ##########################################################
 
 async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    log_call(update)
+    asyncio.create_task(log_call(update))
 
-    if not identify(update):
+    if not (await identify(update)):
         return
 
     if len(machines) == 0:
@@ -349,7 +355,7 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def log_call(update: Update) -> None:
     uid = update.message.from_user.id
-    cmd = await update.message.text.split(' ', 1)
+    cmd = update.message.text.split(' ', 1)
     if len(cmd) > 1:
         logger.info('User [{u}] invoked command {c} with arguments [{a}]'
                     .format(c=cmd[0], a=cmd[1], u=uid))
