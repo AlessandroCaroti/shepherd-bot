@@ -10,8 +10,11 @@ from telegram import (InlineKeyboardButton, Bot,
                       InlineKeyboardMarkup, Update)
 from telegram.ext import (Updater,
                           CommandHandler,
-                          CallbackQueryHandler, CallbackContext)
-from telegram.utils.request import Request
+                          CallbackQueryHandler, CallbackContext, 
+                          ContextTypes, ApplicationBuilder)
+# from telegram.utils.request import Request
+# from telegram.request import BaseRequest as Request
+
 import requests
 from paramiko.ssh_exception import (SSHException)
 
@@ -40,12 +43,13 @@ keyboard_ping = []
 # Command Handlers ##############################################################
 #################################################################################
 
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
-    update.message.reply_text("Hi!")
+    # await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
+    await update.message.reply_text("Hi!")
     
 
-def cmd_help(update: Update, context: CallbackContext) -> None:
+async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
     if not identify(update):
         return
@@ -74,12 +78,12 @@ def cmd_help(update: Update, context: CallbackContext) -> None:
 Names are only required if more than one machine is configured and may only contain a-z, 0-9 and _
 Mac addresses use the separator '{separator}'
     """.format(separator=config.MAC_ADDR_SEPARATOR)
-    update.message.reply_text(help_message)
+    await update.message.reply_text(help_message)
 
 
 ### WAKE-ON-LAN SECTION ##########################################################
 
-def cmd_wake(update: Update, context: CallbackContext) -> None:
+async def cmd_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
     # Check correctness of call
     cmd_permission = config.PERM_WAKE
@@ -90,13 +94,13 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
     args = context.args
     if len(args) == 0:
         if not len(machines):
-            update.message.reply_text('Please add a machine in the configuration first!')
+            await update.message.reply_text('Please add a machine in the configuration first!')
         wake_menu_keyboard = InlineKeyboardMarkup(keyboard_wol)
-        update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard)
+        await update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard)
         return
 
     if len(args) > 1:
-        update.message.reply_text('Please supply only a machine name')
+        await update.message.reply_text('Please supply only a machine name')
         return
 
     # Parse arguments and send WoL packets
@@ -105,9 +109,9 @@ def cmd_wake(update: Update, context: CallbackContext) -> None:
         if m.name == machine_name:
             send_magic_packet(update, m.addr, m.name)
             return
-    update.message.reply_text('Could not find ' + machine_name)
+    await update.message.reply_text('Could not find ' + machine_name)
     
-def cmd_wake_keyboard_handler(update: Update, context: CallbackContext) -> None:
+async def cmd_wake_keyboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         n = int(update.callback_query.data[1:])
     except ValueError:
@@ -118,7 +122,7 @@ def cmd_wake_keyboard_handler(update: Update, context: CallbackContext) -> None:
 
 ### SHUTDOWN SECTION ##########################################################
 
-def cmd_shutdown(update: Update, context: CallbackContext) -> None:
+async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
     # Check correctness of call
     cmd_permission = config.PERM_SHUTDOWN
@@ -130,9 +134,9 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     # When no args are supplied
     if len(args) < 1 and len(machines) != 1:
         if not len(machines):
-            update.message.reply_text('Please add a machine in the configuration first!')   # TODO: FIX
+            await update.message.reply_text('Please add a machine in the configuration first!')   # TODO: FIX
         markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
-        update.message.reply_text('Select a machine to shutdown:', reply_markup=markup)
+        await update.message.reply_text('Select a machine to shutdown:', reply_markup=markup)
         return
 
     # Parse arguments and send shutdown command
@@ -144,7 +148,7 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     machine = find_by_name(machines, machine_name)
 
     if machine is None:
-        update.message.reply_text('Could not find ' + machine_name)
+        await update.message.reply_text('Could not find ' + machine_name)
         return
 
     if check_ssh_setup(machine):
@@ -155,25 +159,25 @@ def cmd_shutdown(update: Update, context: CallbackContext) -> None:
     else:
         logger.info('Machine {name} not set up for SSH connections.'.format(
             name=machine.name))
-        update.message.reply_text(
+        await update.message.reply_text(
             machine.name + ' is not set up for SSH connection')
     return
 
-def cmd_shutdown_keyboard_handler(update: Update, context: CallbackContext) -> None:
+async def cmd_shutdown_keyboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         n = int(update.callback_query.data[1:])
     except ValueError:
         pass
     
     query = update.callback_query
-    query.answer()
-    query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
+    await query.answer()
+    await query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
     print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 
 ### PING SECTION ##########################################################
 
-def cmd_ping(update: Update, context: CallbackContext) -> None:
+async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
     # Check correctness of call
     cmd_permission = config.PERM_PING
@@ -184,13 +188,13 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
     args = context.args
     if len(args) == 0:
         if not len(machines):
-            update.message.reply_text('Please add a machine with in the configuration first!')
+            await update.message.reply_text('Please add a machine with in the configuration first!')
         ping_menu_keyboard = InlineKeyboardMarkup(keyboard_ping)
-        update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard)
+        await update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard)
         return
     
     if len(args) > 1:
-        update.message.reply_text('Please supply only a machine name')
+        await update.message.reply_text('Please supply only a machine name')
         return
 
     # Parse arguments and send WoL packets
@@ -198,13 +202,13 @@ def cmd_ping(update: Update, context: CallbackContext) -> None:
     for m in machines:
         if m.name == machine_name:
             if ping_server(m.host):
-                update.message.reply_text(f'Pong\nServer \'{m.name}\' is running.')
+                await update.message.reply_text(f'Pong\nServer \'{m.name}\' is running.')
             else:
-                update.message.reply_text(f'Could not reach {m.name} under IP {m.host}')
+                await update.message.reply_text(f'Could not reach {m.name} under IP {m.host}')
             return
-    update.message.reply_text('Could not find ' + machine_name)
+    await update.message.reply_text('Could not find ' + machine_name)
 
-def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
+async def cmd_ping_keyboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         n = int(update.callback_query.data[1:])
     except ValueError:
@@ -212,13 +216,13 @@ def cmd_ping_keyboard_handler(update: Update, context: CallbackContext) -> None:
     
     m = machines[n]
     if ping_server(m.host):
-        update.callback_query.edit_message_text(f'Pong \U0001F3D3\nServer \'{m.name}\' is running \u2705')
+        await update.callback_query.edit_message_text(f'Pong \U0001F3D3\nServer \'{m.name}\' is running \u2705')
     else:
-        update.callback_query.edit_message_text(f'\u274C Could not reach \'{m.name}\' under IP {m.host}')
+        await update.callback_query.edit_message_text(f'\u274C Could not reach \'{m.name}\' under IP {m.host}')
     return
 
 
-def cmd_list(update: Update, context: CallbackContext) -> None:
+async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
     # Check correctness of call
     cmd_permission = config.PERM_LIST
@@ -229,10 +233,10 @@ def cmd_list(update: Update, context: CallbackContext) -> None:
     msg = '{num} Stored Machines:\n'.format(num=len(machines))
     for m in machines:
         msg += f'{m.id}) {m.name}\n'
-    update.message.reply_text(msg)
+    await update.message.reply_text(msg)
 
 
-def cmd_ip(update: Update, context: CallbackContext) -> None:
+async def cmd_ip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
     # Check correctness of call
     if not identify(update):
@@ -247,21 +251,21 @@ def cmd_ip(update: Update, context: CallbackContext) -> None:
 
         if not match:
             raise RuntimeError('Could not find IP in webpage response')
-        update.message.reply_text(match.group())
+        await update.message.reply_text(match.group())
     except RuntimeError as e:
-        update.message.reply_text('Error: ' + str(e))
+        await update.message.reply_text('Error: ' + str(e))
 
 
 ### RUN_COMMAND SECTION ##########################################################
 
-def cmd_command(update: Update, context: CallbackContext) -> None:
+async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     log_call(update)
 
     if not identify(update):
         return
 
     if len(machines) == 0:
-        update.message.reply_text(
+        await update.message.reply_text(
             'No machines are registered. Please add a machine in the configuration first!')
         return
 
@@ -271,7 +275,7 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
         return
 
     if len(args) > 2:
-        update.message.reply_text(
+        await update.message.reply_text(
             'Only one command can be processed at a time.')
         return
 
@@ -285,7 +289,7 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
     command = find_by_name(commands, command_name)
 
     if command is None:
-        update.message.reply_text(
+        await update.message.reply_text(
             'Could not find command "{cmd}"'.format(cmd=command_name))
         return
 
@@ -296,12 +300,12 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
     machine = find_by_name(machines, machine_name)
 
     if machine is None:
-        update.message.reply_text(
+        await update.message.reply_text(
             'Could not find machine {machine}.'.format(machine=machine_name))
         return
 
     if not check_ssh_setup(machine):
-        update.message.reply_text(
+        await update.message.reply_text(
             'Machine {machine} is not set up for SSH connections.'.format(machine=machine_name))
         return
 
@@ -309,17 +313,17 @@ def cmd_command(update: Update, context: CallbackContext) -> None:
         logger.info('Attempting to run command on machine {m}: {c}'.format(
             m=machine.name, c=command.name))
         msg = execute_command(command, machine)
-        update.message.reply_text('Command executed:\n{m}'.format(m=msg))
+        await update.message.reply_text('Command executed:\n{m}'.format(m=msg))
     except SSHException as e:
-        update.message.reply_text(
+        await update.message.reply_text(
             'Error in SSH messaging: {e}'.format(e=str(e)))
         return
     except RuntimeError as e:
-        update.message.reply_text(
+        await update.message.reply_text(
             'An unexpected error occurred: {e}'.format(e=str(e)))
         return
 
-def list_commands(update: Update) -> None:
+async def list_commands(update: Update) -> None:
     msg = '{num} Stored Commands:\n'.format(num=len(commands))
     for c in commands:
         msg += '{name}: {description}\n'.format(
@@ -327,25 +331,25 @@ def list_commands(update: Update) -> None:
 
     msg += '\nRun a command with /command [machine_name] <cmd_name>'
 
-    update.message.reply_text(msg)
+    await update.message.reply_text(msg)
 
-def cmd_cancel_handler(update, context):
+async def cmd_cancel_handler(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
-    query.edit_message_text(text="Operation canceled")
+    await query.answer()
+    await query.edit_message_text(text="Operation canceled")
     
 #################################################################################
 # Other Functions ###############################################################
 #################################################################################
 
-def error(update: Update, context: CallbackContext) -> None:
+async def error(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.warning('Update "{u}" caused error "{e}"'.format(
         u=update, e=context.error))
 
 
-def log_call(update: Update) -> None:
+async def log_call(update: Update) -> None:
     uid = update.message.from_user.id
-    cmd = update.message.text.split(' ', 1)
+    cmd = await update.message.text.split(' ', 1)
     if len(cmd) > 1:
         logger.info('User [{u}] invoked command {c} with arguments [{a}]'
                     .format(c=cmd[0], a=cmd[1], u=uid))
@@ -354,28 +358,28 @@ def log_call(update: Update) -> None:
                     .format(c=cmd[0], u=uid))
 
 
-def send_magic_packet(update: Update, mac_address: str, display_name: str) -> None:
+async def send_magic_packet(update: Update, mac_address: str, display_name: str) -> None:
     try:
         wol.wake(mac_address)
     except ValueError as e:
-        update.message.reply_text(str(e))
+        await update.message.reply_text(str(e))
         return
     poke = f'Sending magic packets  to {display_name} ...'
 
     if update.callback_query:
-        update.callback_query.edit_message_text(poke)
+        await update.callback_query.edit_message_text(poke)
     else:
-        update.message.reply_text(poke)
+        await update.message.reply_text(poke)
 
 
-def send_shutdown_command(update: Update, hostname: str, port: int, user: str, display_name: str) -> None:
+async def send_shutdown_command(update: Update, hostname: str, port: int, user: str, display_name: str) -> None:
     try:
         cmd_output = ssh_control.shutdown(hostname, port, user)
     except ValueError as e:
-        update.message.reply_text(str(e))
+        await update.message.reply_text(str(e))
         return
     except SSHException as e:
-        update.message.reply_text(
+        await update.message.reply_text(
             'An error occurred while trying to send the shutdown command over SSH.\n{e}\n'.format(e=str(e)))
         return
 
@@ -383,9 +387,9 @@ def send_shutdown_command(update: Update, hostname: str, port: int, user: str, d
         name=display_name, output=cmd_output)
 
     if update.callback_query:
-        update.callback_query.edit_message_text(poke)
+        await update.callback_query.edit_message_text(poke)
     else:
-        update.message.reply_text(poke)
+        await update.message.reply_text(poke)
 
 
 def generate_machine_keyboard(machine_list: List[Machine]) -> List[List[InlineKeyboardButton]]:
@@ -398,24 +402,24 @@ def generate_machine_keyboard(machine_list: List[Machine]) -> List[List[InlineKe
 
 ### PERMISSION SECTION ##########################################################
 
-def identify(update: Update) -> bool:
+async def identify(update: Update) -> bool:
     if not perm.is_known_user(update.message.from_user.id):
         logger.warning('Unknown User {fn} {ln} [{i}] tried to call bot'.format(
             fn=update.message.from_user.first_name,
             ln=update.message.from_user.last_name,
             i=update.message.from_user.id))
-        update.message.reply_text('You are not authorized to use this bot.')
+        await update.message.reply_text('You are not authorized to use this bot.')
         return False
     return True
 
 
-def authorize(update: Update, permission: str) -> bool:
+async def authorize(update: Update, permission: str) -> bool:
     if not permission:
         # Permission name in config is empty, which is interpreted as the command being deactivated
         name = perm.get_user_name(update.message.from_user.id)
         logger.warning('User {na} [{id}] tried to use a deactivated feature'
             .format(na=name, id=update.message.from_user.id))
-        update.message.reply_text('Sorry, but this command is deactivated.')
+        await update.message.reply_text('Sorry, but this command is deactivated.')
         return False
 
     if not perm.has_permission(update.message.from_user.id, permission):
@@ -424,7 +428,7 @@ def authorize(update: Update, permission: str) -> bool:
             na=name,
             id=update.message.from_user.id,
             pe=permission))
-        update.message.reply_text('Sorry, but you are not authorized to run this command.\n'
+        await update.message.reply_text('Sorry, but you are not authorized to run this command.\n'
                                   + 'Ask your bot admin if you think you should get access.')
         return False
     return True
@@ -446,17 +450,18 @@ def main() -> None:
     perm.load_users()
 
     # Set up bot
-    req = Request(con_pool_size=8, connect_timeout=8)
-    my_bot = Bot(config.TOKEN, request=req)
-    updater = Updater(bot=my_bot, use_context=True)
-    dispatcher = updater.dispatcher
+    # req = Request(con_pool_size=8, connect_timeout=8)
+    # my_bot = Bot(config.TOKEN)
+    # updater = Updater(bot=my_bot, )
+    # application = updater.application
+    application = ApplicationBuilder().token(config.TOKEN).build()
 
     # Add commands info
     cmd = [("help", "Display commands"),
            ("wake", "Wake saved machine"),
            ("list", "List all saved machines"),
            ("ping", "Ping a server")]
-    my_bot.set_my_commands(cmd)
+    # my_bot.set_my_commands(cmd)
 
     global keyboard_wol, keyboard_ping
     # Create menu Keyboards TODO: add shutdown
@@ -468,25 +473,28 @@ def main() -> None:
     keyboard_ping.append(cnl_btn)
         
     # Add handlers
-    dispatcher.add_handler(CommandHandler('help', cmd_help))
-    dispatcher.add_handler(CommandHandler('list', cmd_list))
-    dispatcher.add_handler(CommandHandler('ip', cmd_ip))
-    dispatcher.add_handler(CommandHandler('wake', cmd_wake, pass_args=True))
-    dispatcher.add_handler(CommandHandler('shutdown', cmd_shutdown, pass_args=True))
-    dispatcher.add_handler(CommandHandler('command', cmd_command, pass_args=True))
-    dispatcher.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
-    dispatcher.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('help', cmd_help))
+    application.add_handler(CommandHandler('list', cmd_list))
+    application.add_handler(CommandHandler('ip', cmd_ip))
+    # application.add_handler(CommandHandler('wake', cmd_wake, pass_args=True))
+    # application.add_handler(CommandHandler('shutdown', cmd_shutdown, pass_args=True))
+    # application.add_handler(CommandHandler('command', cmd_command, pass_args=True))
+    # application.add_handler(CommandHandler('ping', cmd_ping, pass_args=True))
+    application.add_handler(CommandHandler('wake', cmd_wake))
+    application.add_handler(CommandHandler('shutdown', cmd_shutdown))
+    application.add_handler(CommandHandler('command', cmd_command))
+    application.add_handler(CommandHandler('ping', cmd_ping))
+    application.add_handler(CommandHandler('start', start))
     
-    dispatcher.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler, pattern='w+'))
-    dispatcher.add_handler(CallbackQueryHandler(cmd_ping_keyboard_handler, pattern='p+'))
-    dispatcher.add_handler(CallbackQueryHandler(cmd_cancel_handler, pattern="C"))
+    application.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler, pattern='w+'))
+    application.add_handler(CallbackQueryHandler(cmd_ping_keyboard_handler, pattern='p+'))
+    application.add_handler(CallbackQueryHandler(cmd_cancel_handler, pattern="C"))
     
     
-    dispatcher.add_error_handler(error)
+    application.add_error_handler(error)
 
     # Start bot
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 
 if __name__ == '__main__':
