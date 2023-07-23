@@ -133,7 +133,6 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not (await identify(update)) or not (await authorize(update, cmd_permission)):
         return
 
-    return
     args = context.args
     # When no args are supplied
     if len(args) < 1 and len(machines) != 1:
