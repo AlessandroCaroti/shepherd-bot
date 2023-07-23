@@ -157,8 +157,8 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if check_ssh_setup(machine):
         logger.info(
             'host: {host}| user: {user}| port: {port}'.format(host=machine.host, user=machine.user, port=machine.port))
-        send_shutdown_command(update, machine.host,
-                              machine.port, machine.user, machine.name)
+        await send_shutdown_command(update, machine.host,
+                                    machine.port, machine.user, machine.name)
     else:
         logger.info('Machine {name} not set up for SSH connections.'.format(
             name=machine.name))
