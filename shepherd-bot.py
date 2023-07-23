@@ -37,6 +37,7 @@ machines = []
 commands = []
 keyboard_wol  = []
 keyboard_ping = []
+keyboard_shutdown = []
 
 
 #################################################################################
@@ -138,13 +139,13 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if len(args) == 0:
         if not len(machines):
             await update.message.reply_text('Please add a machine in the configuration first!')   # TODO: FIX
-        markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
-        await update.message.reply_text('Select a machine to shutdown:', reply_markup=markup)
+        shutdown_menu_keyboard = InlineKeyboardMarkup(keyboard_shutdown)
+        await update.message.reply_text('Select a machine to shutdown:', reply_markup=shutdown_menu_keyboard)
         return
 
     # Parse arguments and send shutdown command
     machine_name = args[0]
-    await logger.info("find_by_name")
+    asyncio.create_task(log_call(update))
     machine = find_by_name(machines, machine_name)
     if machine is None:
         await update.message.reply_text('Could not find ' + machine_name)
@@ -170,10 +171,19 @@ async def cmd_shutdown_keyboard_handler(update: Update, context: ContextTypes.DE
     except ValueError:
         pass
     
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
-    print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
+    m = machines[n]
+    if check_ssh_setup(m):
+        logger.info(
+            'host: {host}| user: {user}| port: {port}'.format(host=m.host, user=m.user, port=m.port))
+        await send_shutdown_command(update, m.host, m.port, m.user, m.name)
+    else:
+        logger.info('Machine {name} not set up for SSH connections.'.format(name=m.name))
+        await update.message.reply_text(m.name + ' is not set up for SSH connection')
+    return
+    # query = update.callback_query
+    # await query.answer()
+    # await query.edit_message_text(text=f"TESTS_SHUTDOWN {update.callback_query.data} - {n}")
+    # print("NON ANCORA IMPLEMENTATO!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 
 ### PING SECTION ##########################################################
@@ -462,14 +472,16 @@ def main() -> None:
     # list - List all saved machines
     # ping - Ping a server
 
-    global keyboard_wol, keyboard_ping
-    # Create menu Keyboards TODO: add shutdown
+    global keyboard_wol, keyboard_ping, keyboard_shutdown
+    # Create menu Keyboards 
     for idx, m in enumerate(machines):
         keyboard_wol.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'w{idx}')])
         keyboard_ping.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f'p{idx}')])
+        keyboard_shutdown.append([InlineKeyboardButton(f'{idx+1}) {m.name}', callback_data=f's{idx}')])
     cnl_btn = [InlineKeyboardButton(f'<< Cancel', callback_data="C")]
     keyboard_wol.append(cnl_btn)
     keyboard_ping.append(cnl_btn)
+    keyboard_shutdown.append(cnl_btn)
         
     # Add handlers
     application.add_handler(CommandHandler('help', cmd_help))
@@ -483,6 +495,7 @@ def main() -> None:
     
     application.add_handler(CallbackQueryHandler(cmd_wake_keyboard_handler, pattern='w+'))
     application.add_handler(CallbackQueryHandler(cmd_ping_keyboard_handler, pattern='p+'))
+    application.add_handler(CallbackQueryHandler(cmd_shutdown_keyboard_handler, pattern='s+'))
     application.add_handler(CallbackQueryHandler(cmd_cancel_handler, pattern="C"))
     
     
