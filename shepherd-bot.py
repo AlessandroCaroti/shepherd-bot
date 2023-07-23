@@ -110,7 +110,7 @@ async def cmd_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     machine_name = args[0]
     for m in machines:
         if m.name == machine_name:
-            send_magic_packet(update, m.addr, m.name)
+            await send_magic_packet(update, m.addr, m.name)
             return
     await update.message.reply_text('Could not find ' + machine_name)
     
@@ -120,7 +120,7 @@ async def cmd_wake_keyboard_handler(update: Update, context: ContextTypes.DEFAUL
     except ValueError:
         pass
     
-    send_magic_packet(update, machines[n].addr, machines[n].name)
+    await send_magic_packet(update, machines[n].addr, machines[n].name)
     
 
 ### SHUTDOWN SECTION ##########################################################
