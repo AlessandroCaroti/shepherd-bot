@@ -47,7 +47,7 @@ keyboard_shutdown = []
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     asyncio.create_task(log_call(update))
     # await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
-    await update.callback_query.edit_message_text("Hi!")
+    await update.message.reply_text("Hi!")
     
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -81,7 +81,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 Names are only required if more than one machine is configured and may only contain a-z, 0-9 and _
 Mac addresses use the separator '{separator}'
     """.format(separator=config.MAC_ADDR_SEPARATOR)
-    await update.callback_query.edit_message_text(help_message)
+    await update.message.reply_text(help_message)
 
 
 ### WAKE-ON-LAN SECTION ##########################################################
@@ -98,13 +98,13 @@ async def cmd_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args
     if len(args) == 0:
         if not len(machines):
-            await update.callback_query.edit_message_text('Please add a machine in the configuration first!')
+            await update.message.reply_text('Please add a machine in the configuration first!')
         wake_menu_keyboard = InlineKeyboardMarkup(keyboard_wol)
-        await update.callback_query.edit_message_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard)
+        await update.message.reply_text('Select a machine to wake up:', reply_markup=wake_menu_keyboard)
         return
 
     if len(args) > 1:
-        await update.callback_query.edit_message_text('Please supply only a machine name')
+        await update.message.reply_text('Please supply only a machine name')
         return
 
     # Parse arguments and send WoL packets
@@ -113,7 +113,7 @@ async def cmd_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if m.name == machine_name:
             await send_magic_packet(update, m.addr, m.name)
             return
-    await update.callback_query.edit_message_text('Could not find ' + machine_name)
+    await update.message.reply_text('Could not find ' + machine_name)
     
 async def cmd_wake_keyboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
@@ -138,9 +138,9 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     args = context.args
     if len(args) == 0:
         if not len(machines):
-            await update.callback_query.edit_message_text('Please add a machine in the configuration first!')   # TODO: FIX
+            await update.message.reply_text('Please add a machine in the configuration first!')   # TODO: FIX
         shutdown_menu_keyboard = InlineKeyboardMarkup(keyboard_shutdown)
-        await update.callback_query.edit_message_text('Select a machine to shutdown:', reply_markup=shutdown_menu_keyboard)
+        await update.message.reply_text('Select a machine to shutdown:', reply_markup=shutdown_menu_keyboard)
         return
 
     # Parse arguments and send shutdown command
@@ -148,7 +148,7 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     asyncio.create_task(log_call(update))
     machine = find_by_name(machines, machine_name)
     if machine is None:
-        await update.callback_query.edit_message_text('Could not find ' + machine_name)
+        await update.message.reply_text('Could not find ' + machine_name)
         return
     else:
         await logger.info(f"find machine {machine}")
@@ -161,7 +161,7 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     else:
         logger.info('Machine {name} not set up for SSH connections.'.format(
             name=machine.name))
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             machine.name + ' is not set up for SSH connection')
     return
 
@@ -178,7 +178,7 @@ async def cmd_shutdown_keyboard_handler(update: Update, context: ContextTypes.DE
         await send_shutdown_command(update, m.host, m.port, m.user, m.name)
     else:
         logger.info('Machine {name} not set up for SSH connections.'.format(name=m.name))
-        await update.callback_query.edit_message_text(m.name + ' is not set up for SSH connection')
+        await update.message.reply_text(m.name + ' is not set up for SSH connection')
     return
     # query = update.callback_query
     # await query.answer()
@@ -200,13 +200,13 @@ async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args
     if len(args) == 0:
         if not len(machines):
-            await update.callback_query.edit_message_text('Please add a machine with in the configuration first!')
+            await update.message.reply_text('Please add a machine with in the configuration first!')
         ping_menu_keyboard = InlineKeyboardMarkup(keyboard_ping)
-        await update.callback_query.edit_message_text('Select a machine to ping:', reply_markup=ping_menu_keyboard)
+        await update.message.reply_text('Select a machine to ping:', reply_markup=ping_menu_keyboard)
         return
     
     if len(args) > 1:
-        await update.callback_query.edit_message_text('Please supply only a machine name')
+        await update.message.reply_text('Please supply only a machine name')
         return
 
     # Parse arguments and send WoL packets
@@ -214,11 +214,11 @@ async def cmd_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for m in machines:
         if m.name == machine_name:
             if ping_server(m.host):
-                await update.callback_query.edit_message_text(f'Pong\nServer \'{m.name}\' is running.')
+                await update.message.reply_text(f'Pong\nServer \'{m.name}\' is running.')
             else:
-                await update.callback_query.edit_message_text(f'Could not reach {m.name} under IP {m.host}')
+                await update.message.reply_text(f'Could not reach {m.name} under IP {m.host}')
             return
-    await update.callback_query.edit_message_text('Could not find ' + machine_name)
+    await update.message.reply_text('Could not find ' + machine_name)
 
 async def cmd_ping_keyboard_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
@@ -245,7 +245,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = '{num} Stored Machines:\n'.format(num=len(machines))
     for m in machines:
         msg += f'{m.id}) {m.name}\n'
-    await update.callback_query.edit_message_text(msg)
+    await update.message.reply_text(msg)
 
 
 async def cmd_ip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -264,9 +264,9 @@ async def cmd_ip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         if not match:
             raise RuntimeError('Could not find IP in webpage response')
-        await update.callback_query.edit_message_text(match.group())
+        await update.message.reply_text(match.group())
     except RuntimeError as e:
-        await update.callback_query.edit_message_text('Error: ' + str(e))
+        await update.message.reply_text('Error: ' + str(e))
 
 
 ### RUN_COMMAND SECTION ##########################################################
@@ -278,7 +278,7 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if len(machines) == 0:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'No machines are registered. Please add a machine in the configuration first!')
         return
 
@@ -288,7 +288,7 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if len(args) > 2:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'Only one command can be processed at a time.')
         return
 
@@ -302,7 +302,7 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     command = find_by_name(commands, command_name)
 
     if command is None:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'Could not find command "{cmd}"'.format(cmd=command_name))
         return
 
@@ -313,12 +313,12 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     machine = find_by_name(machines, machine_name)
 
     if machine is None:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'Could not find machine {machine}.'.format(machine=machine_name))
         return
 
     if not check_ssh_setup(machine):
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'Machine {machine} is not set up for SSH connections.'.format(machine=machine_name))
         return
 
@@ -326,13 +326,13 @@ async def cmd_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.info('Attempting to run command on machine {m}: {c}'.format(
             m=machine.name, c=command.name))
         msg = execute_command(command, machine)
-        await update.callback_query.edit_message_text('Command executed:\n{m}'.format(m=msg))
+        await update.message.reply_text('Command executed:\n{m}'.format(m=msg))
     except SSHException as e:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'Error in SSH messaging: {e}'.format(e=str(e)))
         return
     except RuntimeError as e:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'An unexpected error occurred: {e}'.format(e=str(e)))
         return
 
@@ -344,7 +344,7 @@ async def list_commands(update: Update) -> None:
 
     msg += '\nRun a command with /command [machine_name] <cmd_name>'
 
-    await update.callback_query.edit_message_text(msg)
+    await update.message.reply_text(msg)
 
 async def cmd_cancel_handler(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -375,24 +375,24 @@ async def send_magic_packet(update: Update, mac_address: str, display_name: str)
     try:
         wol.wake(mac_address)
     except ValueError as e:
-        await update.callback_query.edit_message_text(str(e))
+        await update.message.reply_text(str(e))
         return
     poke = f'Sending magic packets  to {display_name} ...'
 
     if update.callback_query:
         await update.callback_query.edit_message_text(poke)
     else:
-        await update.callback_query.edit_message_text(poke)
+        await update.message.reply_text(poke)
 
 
 async def send_shutdown_command(update: Update, hostname: str, port: int, user: str, display_name: str) -> None:
     try:
         cmd_output = ssh_control.shutdown(hostname, port, user)
     except ValueError as e:
-        await update.callback_query.edit_message_text(str(e))
+        await update.message.reply_text(str(e))
         return
     except SSHException as e:
-        await update.callback_query.edit_message_text(
+        await update.message.reply_text(
             'An error occurred while trying to send the shutdown command over SSH.\n{e}\n'.format(e=str(e)))
         return
 
@@ -402,7 +402,7 @@ async def send_shutdown_command(update: Update, hostname: str, port: int, user: 
     if update.callback_query:
         await update.callback_query.edit_message_text(poke)
     else:
-        await update.callback_query.edit_message_text(poke)
+        await update.message.reply_text(poke)
 
 
 def generate_machine_keyboard(machine_list: List[Machine]) -> List[List[InlineKeyboardButton]]:
@@ -421,7 +421,7 @@ async def identify(update: Update) -> bool:
             fn=update.message.from_user.first_name,
             ln=update.message.from_user.last_name,
             i=update.message.from_user.id))
-        await update.callback_query.edit_message_text('You are not authorized to use this bot.')
+        await update.message.reply_text('You are not authorized to use this bot.')
         return False
     return True
 
@@ -432,7 +432,7 @@ async def authorize(update: Update, permission: str) -> bool:
         name = perm.get_user_name(update.message.from_user.id)
         logger.warning('User {na} [{id}] tried to use a deactivated feature'
             .format(na=name, id=update.message.from_user.id))
-        await update.callback_query.edit_message_text('Sorry, but this command is deactivated.')
+        await update.message.reply_text('Sorry, but this command is deactivated.')
         return False
 
     if not perm.has_permission(update.message.from_user.id, permission):
@@ -441,7 +441,7 @@ async def authorize(update: Update, permission: str) -> bool:
             na=name,
             id=update.message.from_user.id,
             pe=permission))
-        await update.callback_query.edit_message_text('Sorry, but you are not authorized to run this command.\n'
+        await update.message.reply_text('Sorry, but you are not authorized to run this command.\n'
                                   + 'Ask your bot admin if you think you should get access.')
         return False
     return True
