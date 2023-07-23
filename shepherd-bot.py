@@ -178,7 +178,7 @@ async def cmd_shutdown_keyboard_handler(update: Update, context: ContextTypes.DE
         await send_shutdown_command(update, m.host, m.port, m.user, m.name)
     else:
         logger.info('Machine {name} not set up for SSH connections.'.format(name=m.name))
-        await update.message.reply_text(m.name + ' is not set up for SSH connection')
+        await update.callback_query.edit_message_text(m.name + ' is not set up for SSH connection')
     return
     # query = update.callback_query
     # await query.answer()
@@ -375,24 +375,24 @@ async def send_magic_packet(update: Update, mac_address: str, display_name: str)
     try:
         wol.wake(mac_address)
     except ValueError as e:
-        await update.message.reply_text(str(e))
+        await update.callback_query.edit_message_text(str(e))
         return
     poke = f'Sending magic packets  to {display_name} ...'
 
     if update.callback_query:
         await update.callback_query.edit_message_text(poke)
     else:
-        await update.message.reply_text(poke)
+        await update.callback_query.edit_message_text(poke)
 
 
 async def send_shutdown_command(update: Update, hostname: str, port: int, user: str, display_name: str) -> None:
     try:
         cmd_output = ssh_control.shutdown(hostname, port, user)
     except ValueError as e:
-        await update.message.reply_text(str(e))
+        await update.callback_query.edit_message_text(str(e))
         return
     except SSHException as e:
-        await update.message.reply_text(
+        await update.callback_query.edit_message_text(
             'An error occurred while trying to send the shutdown command over SSH.\n{e}\n'.format(e=str(e)))
         return
 
@@ -402,7 +402,7 @@ async def send_shutdown_command(update: Update, hostname: str, port: int, user: 
     if update.callback_query:
         await update.callback_query.edit_message_text(poke)
     else:
-        await update.message.reply_text(poke)
+        await update.callback_query.edit_message_text(poke)
 
 
 def generate_machine_keyboard(machine_list: List[Machine]) -> List[List[InlineKeyboardButton]]:
