@@ -144,10 +144,13 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Parse arguments and send shutdown command
     machine_name = args[0]
+    await logger.info("find_by_name")
     machine = find_by_name(machines, machine_name)
     if machine is None:
         await update.message.reply_text('Could not find ' + machine_name)
         return
+    else:
+        await logger.info(f"find machine {machine}")
 
     if check_ssh_setup(machine):
         logger.info(
