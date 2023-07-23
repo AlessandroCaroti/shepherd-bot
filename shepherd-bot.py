@@ -457,12 +457,12 @@ def main() -> None:
     # Set up bot
     application = ApplicationBuilder().token(config.TOKEN).build()
 
-    # Add commands info
-    cmd = [("help", "Display commands"),
-           ("wake", "Wake saved machine"),
-           ("list", "List all saved machines"),
-           ("ping", "Ping a server")]
-    # my_bot.set_my_commands(cmd)
+    # Add commands info - BotFather /setcommands
+    # help - Display commands
+    # wake - Wake saved machine
+    # shutdown - Shutdown saved machiner
+    # list - List all saved machines
+    # ping - Ping a server
 
     global keyboard_wol, keyboard_ping
     # Create menu Keyboards TODO: add shutdown
