@@ -133,9 +133,9 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not (await identify(update)) or not (await authorize(update, cmd_permission)):
         return
 
-    args = context.args
     # When no args are supplied
-    if len(args) < 1 and len(machines) != 1:
+    args = context.args
+    if len(args) == 0:
         if not len(machines):
             await update.message.reply_text('Please add a machine in the configuration first!')   # TODO: FIX
         markup = InlineKeyboardMarkup(generate_machine_keyboard(machines))
@@ -143,13 +143,8 @@ async def cmd_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     # Parse arguments and send shutdown command
-    if len(args) == 0:
-        machine_name = machines[0].name
-    else:
-        machine_name = args[0]
-
+    machine_name = args[0]
     machine = find_by_name(machines, machine_name)
-
     if machine is None:
         await update.message.reply_text('Could not find ' + machine_name)
         return
