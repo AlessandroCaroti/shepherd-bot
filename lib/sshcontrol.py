@@ -36,8 +36,9 @@ def run_remote_command(hostname: str, port: int, username: str, command: str) ->
     __log_command_execution(hostname, port, username, command)
     try:
         client = __connect_ssh_client(hostname, port, username)
-    except SSHException:
+    except SSHException as e:
         logger.warning('Caught SSHException during SSHClient setup.')
+        logger.warning(e)
         raise
     except socket.timeout as e:
         logger.warning('Caught connection timeout during SSHClient setup.')
